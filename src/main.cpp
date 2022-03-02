@@ -21,7 +21,6 @@ int pos = 0;
 int relayPin = 7;
 int servoPin = 3;
 
-
 int maxReadings() // returns datapoint number for max power
 {
   int maxPowerIndex;
@@ -81,26 +80,33 @@ void setup()
 
 void loop() 
 {
-  if(ina260.readBusVoltage() > .01 && dataSets > 0)
+  Serial.print("power: ");
+  Serial.println(ina260.readPower());
+  Serial.print("current: ");
+  Serial.println(ina260.readCurrent());
+  Serial.print("voltage: ");
+  Serial.println(ina260.readPower()/ina260.readCurrent());
+
+  if(ina260.readPower()/ina260.readCurrent() > 1000 && dataSets > 0)
   {
     for (pos = 0; pos <= 180; pos += 1) 
     { 
       if(pos % 3 == 0)
       {
-        readings[readingNum].millivolts = ina260.readBusVoltage();
+        readings[readingNum].millivolts = ina260.readPower()/ina260.readCurrent();
         readings[readingNum].amps = ina260.readCurrent();
         readings[readingNum].watts = ina260.readPower();
       }
 
       servo.write(pos);
-      delay(100);
+      delay(5000);
     }
 
     int maxIndex = maxReadings();
     for (pos = 180; pos >= maxIndex*3; pos -= 1) 
     { 
       servo.write(pos);
-      delay(100);
+      delay(5000);
     }
 
     printReadings(maxIndex);
