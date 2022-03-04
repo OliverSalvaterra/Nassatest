@@ -10,6 +10,7 @@ struct Readings {
 
 int dataSets = 1;
 const int dataPoints = 60;
+int powerThreshhold = 0;
 
 Readings readings[dataPoints];
 Adafruit_INA260 ina260 = Adafruit_INA260();
@@ -80,17 +81,12 @@ void setup()
 
 void loop() 
 {
-  Serial.print("power: ");
-  Serial.println(ina260.readPower());
-  Serial.print("current: ");
-  Serial.println(ina260.readCurrent());
-  Serial.print("voltage: ");
-  Serial.println(ina260.readPower()/ina260.readCurrent());
-
-  if(ina260.readPower()/ina260.readCurrent() > 1000 && dataSets > 0)
+  if(ina260.readPower() >= powerThreshhold && dataSets > 0)
   {
-    for (pos = 0; pos <= 180; pos += 1) 
+    Serial.println("in if loop");
+    for (pos = 0; pos <= 1; pos += 1) 
     { 
+      Serial.println("in first for loop");
       if(pos % 3 == 0)
       {
         readings[readingNum].millivolts = ina260.readPower()/ina260.readCurrent();
@@ -99,19 +95,21 @@ void loop()
       }
 
       servo.write(pos);
-      delay(5000);
+      delay(500);
     }
 
     int maxIndex = maxReadings();
-    for (pos = 180; pos >= maxIndex*3; pos -= 1) 
-    { 
+    for (pos = 1; pos >= 0.1; pos -= 1) 
+    {
+      Serial.println("in second for loop");
       servo.write(pos);
-      delay(5000);
     }
 
     printReadings(maxIndex);
 
     dataSets--;
+
+    delay(5000);
   }
   if(dataSets <= 0)
   {
