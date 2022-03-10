@@ -8,7 +8,7 @@ struct Readings {
   int watts;
 };
 
-int dataSets = 1;
+int dataSets = 3;
 const int dataPoints = 60;
 int powerThreshhold = 0;
 
@@ -81,13 +81,13 @@ void setup()
 
 void loop() 
 {
+  servo.write(0);
+
   if(ina260.readPower() >= powerThreshhold && dataSets > 0)
   {
-    Serial.println("in if loop");
-    for (pos = 0; pos <= 1; pos += 1) 
+    for (pos = 0; pos <= 180; pos += 1) 
     { 
-      Serial.println("in first for loop");
-      if(pos % 3 == 0)
+      if(pos % ((int)(180/dataPoints) + 1) == 0)
       {
         readings[readingNum].millivolts = ina260.readPower()/ina260.readCurrent();
         readings[readingNum].amps = ina260.readCurrent();
@@ -95,22 +95,22 @@ void loop()
       }
 
       servo.write(pos);
-      delay(500);
-    }
-
+      delay(15);
+    } 
+  
     int maxIndex = maxReadings();
-    for (pos = 1; pos >= 0.1; pos -= 1) 
+    int maxDegrees = (int)((180/dataPoints) + 1) * maxIndex;
+    for (pos = 180; pos >= maxDegrees; pos -= 1) 
     {
-      Serial.println("in second for loop");
       servo.write(pos);
+      delay(15);
     }
 
     printReadings(maxIndex);
 
     dataSets--;
-
-    delay(5000);
   }
+
   if(dataSets <= 0)
   {
     digitalWrite(relayPin, HIGH);
