@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include <Adafruit_INA260.h>
+#include <SPI.h>
+#include <SD.h>
 
 struct Readings {
   int millivolts;
@@ -11,6 +13,7 @@ struct Readings {
 int dataSets = 3;
 const int dataPoints = 60;
 int powerThreshhold = 0;
+int maxIndex = -1;
 
 Readings readings[dataPoints];
 Adafruit_INA260 ina260 = Adafruit_INA260();
@@ -21,6 +24,8 @@ int pos = 0;
 
 int relayPin = 7;
 int servoPin = 3;
+
+const int chipSelect = 4;
 
 int maxReadings() // returns datapoint number for max power
 {
@@ -60,6 +65,29 @@ void printReadings(int maxIndex)
   }
 }
 
+void logReadings(int maxIndex, File f)
+{
+  f.println("datapoint,power,current,voltage");
+  
+  f.print("Maximum power data,");
+    f.print(readings[maxIndex].watts);
+  f.print(",");
+    f.print(readings[maxIndex].amps);
+  f.print(",");
+    f.println(readings[maxIndex].millivolts);
+
+  for(int i = 0; i < dataPoints; i++)
+  {
+    f.print(i);
+    f.print(",");
+      f.print(readings[maxIndex].watts);
+    f.print(",");
+      f.print(readings[maxIndex].amps);
+    f.print(",");
+      f.println(readings[maxIndex].millivolts);
+  }
+}
+
 
 void setup() 
 {
@@ -68,12 +96,18 @@ void setup()
   while (!Serial) { delay(10); }
 
   Serial.println("Adafruit INA260 Test");
-
   if (!ina260.begin()) {
     Serial.println("Couldn't find INA260 chip");
     while (1);
   }
   Serial.println("Found INA260 chip");
+
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    while (1);
+  }
+  Serial.println("card initialized.");
 
   pinMode(relayPin, OUTPUT);
   servo.attach(servoPin);
@@ -96,17 +130,27 @@ void loop()
 
       servo.write(pos);
       delay(15);
-    } 
-  
-    int maxIndex = maxReadings();
-    int maxDegrees = (int)((180/dataPoints) + 1) * maxIndex;
-    for (pos = 180; pos >= maxDegrees; pos -= 1) 
+    }
+
+    for (pos = 180; pos >= 0; pos--) 
     {
       servo.write(pos);
       delay(15);
     }
-
+  
+    maxIndex = maxReadings();
     printReadings(maxIndex);
+
+    char* fileName = "datalog0.txt";
+    fileName[7] = (char)(dataSets + 48);
+
+    File dataFile = SD.open(fileName, FILE_WRITE);
+    
+    if (dataFile) {
+    logReadings(maxIndex, dataFile);
+    dataFile.close();
+    }
+    else Serial.println("error opening datalog.txt");
 
     dataSets--;
   }
@@ -114,5 +158,13 @@ void loop()
   if(dataSets <= 0)
   {
     digitalWrite(relayPin, HIGH);
+
+    
+    int maxDegrees = (int)((180/dataPoints)) * maxIndex;
+    for (pos = 0; pos <= maxDegrees; pos++) 
+    {
+      servo.write(pos);
+      delay(15);
+    }
   }
 }
