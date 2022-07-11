@@ -1,13 +1,12 @@
 #include <Arduino.h>
-#include <Servo.h>
 #include <Adafruit_INA260.h>
 #include <SPI.h>
 #include <SD.h>
 
 struct Readings {
-  int millivolts;
-  int amps;
-  int watts;
+  double millivolts;
+  double amps;
+  double watts;
 };
 
 int dataSets = 3;
@@ -17,13 +16,11 @@ int maxIndex = -1;
 
 Readings readings[dataPoints];
 Adafruit_INA260 ina260 = Adafruit_INA260();
-Servo servo;
 int readingNum = 0;
 
 int pos = 0;
 
 int relayPin = 7;
-int servoPin = 3;
 
 const int chipSelect = 4;
 
@@ -110,36 +107,23 @@ void setup()
   Serial.println("card initialized.");
 
   pinMode(relayPin, OUTPUT);
-  servo.attach(servoPin);
 }
 
 void loop() 
 {
-  servo.write(0);
-
-  if(ina260.readPower() >= powerThreshhold && dataSets > 0)
+  if(dataSets > 0)
   {
-    for (pos = 0; pos <= 180; pos += 1) 
+    for (int i = 0; i <= dataPoints; i++) 
     { 
-      if(pos % ((int)(180/dataPoints) + 1) == 0)
-      {
-        readings[readingNum].millivolts = ina260.readPower()/ina260.readCurrent();
-        readings[readingNum].amps = ina260.readCurrent();
-        readings[readingNum].watts = ina260.readPower();
-      }
-
-      servo.write(pos);
-      delay(15);
+      readings[readingNum].millivolts = ina260.readPower()/ina260.readCurrent();
+      readings[readingNum].amps = ina260.readCurrent();
+      readings[readingNum].watts = ina260.readPower();
     }
 
-    for (pos = 180; pos >= 0; pos--) 
-    {
-      servo.write(pos);
-      delay(15);
-    }
+    delay(15);
   
     maxIndex = maxReadings();
-    printReadings(maxIndex);
+    //printReadings(maxIndex);
 
     char* fileName = "datalog0.txt";
     fileName[7] = (char)(dataSets + 48);
@@ -147,24 +131,13 @@ void loop()
     File dataFile = SD.open(fileName, FILE_WRITE);
     
     if (dataFile) {
-    logReadings(maxIndex, dataFile);
-    dataFile.close();
+      logReadings(maxIndex, dataFile);
+      dataFile.close();
     }
     else Serial.println("error opening datalog.txt");
 
     dataSets--;
   }
 
-  if(dataSets <= 0)
-  {
-    digitalWrite(relayPin, HIGH);
-
-    
-    int maxDegrees = (int)((180/dataPoints)) * maxIndex;
-    for (pos = 0; pos <= maxDegrees; pos++) 
-    {
-      servo.write(pos);
-      delay(15);
-    }
-  }
+  digitalWrite(relayPin, HIGH);
 }
